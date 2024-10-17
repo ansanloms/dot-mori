@@ -8,21 +8,11 @@ import Ajv from "./deps/ajv/mod.ts";
 
 import Schema from "./schemas/Schema.json" with { type: "json" };
 
-const SchemaEnumOs = {
-  ...Schema.definitions.EnumOs,
-  definitions: Schema.definitions,
-} as const;
-const SchemaLink = {
-  ...Schema.definitions.Link,
-  definitions: Schema.definitions,
-} as const;
 const SchemaConfig = {
   ...Schema.definitions.Config,
   definitions: Schema.definitions,
 } as const;
 
-type EnumOs = FromSchema<typeof SchemaEnumOs>;
-type Link = FromSchema<typeof SchemaLink>;
 type Config = FromSchema<typeof SchemaConfig>;
 
 const homedir = dir("home") ?? undefined;
@@ -80,7 +70,7 @@ export const link = async (dest: string, src: string) => {
   const expandDest = expand(dest);
 
   if (!(await fs.exists(expandSrc))) {
-    throw new Error("'" + src + "' not exists.");
+    throw new Error(`'${src}' not exists.`);
   }
 
   await Deno.mkdir(path.dirname(expandDest), { recursive: true });
