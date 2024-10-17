@@ -3,11 +3,15 @@ import { colors } from "./deps/@cliffy/ansi/colors.ts";
 import * as dotMori from "./mod.ts";
 
 const { options } = await new Command()
+  .version("0.1.1")
+  .description("A tool for managing and installing dotfiles.")
   .option("--config <config:string>", "config path.", { required: true })
   .option("--clean", "remove dotfile symlinks.", { default: false })
   .parse(Deno.args);
 
 const config = await dotMori.getConfig(options.config);
+
+let isError: boolean = false;
 
 for (const [dest, linkItems] of Object.entries(config.link)) {
   for (const { src, targets } of linkItems) {
@@ -41,6 +45,9 @@ for (const [dest, linkItems] of Object.entries(config.link)) {
       console.info(` ${colors.green("Successed.")}`);
     } catch (error) {
       console.error(` ${colors.red(error.toString())}`);
+      isError = true;
     }
   }
 }
+
+Deno.exit(isError ? 1 : 0);
