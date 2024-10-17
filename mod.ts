@@ -1,51 +1,45 @@
-import { as, assert, is } from "./deps/@core/unknownutil/mod.ts";
-import type { Predicate } from "./deps/@core/unknownutil/mod.ts";
-import { Command } from "./deps/@cliffy/command/mod.ts";
-import { colors } from "./deps/@cliffy/ansi/colors.ts";
 import dir from "./deps/dir/mod.ts";
 import * as fs from "./deps/@std/fs/mod.ts";
 import * as path from "./deps/@std/path/mod.ts";
 import * as yaml from "./deps/@std/yaml/mod.ts";
 
-const homedir = dir("home");
+import { FromSchema } from "./deps/json-schema-to-ts/mod.ts";
+import Ajv from "./deps/ajv/mod.ts";
 
-type Link = {
-  /**
-   * src file path
-   */
-  src: string;
+import Schema from "./schemas/Schema.json" with { type: "json" };
 
-  /**
-   * target os
-   */
-  targets?: ("darwin" | "linux" | "windows")[];
-};
+const SchemaEnumOs = {
+  ...Schema.definitions.EnumOs,
+  definitions: Schema.definitions,
+} as const;
+const SchemaLink = {
+  ...Schema.definitions.Link,
+  definitions: Schema.definitions,
+} as const;
+const SchemaConfig = {
+  ...Schema.definitions.Config,
+  definitions: Schema.definitions,
+} as const;
 
-type Config = {
-  /**
-   * install link list
-   */
-  link: Record<string, Link[]>;
-};
+type EnumOs = FromSchema<typeof SchemaEnumOs>;
+type Link = FromSchema<typeof SchemaLink>;
+type Config = FromSchema<typeof SchemaConfig>;
 
-const isTarget = is.UnionOf([
-  is.LiteralOf("darwin"),
-  is.LiteralOf("linux"),
-  is.LiteralOf("windows"),
-]);
+const homedir = dir("home") ?? undefined;
 
-const isLink = is.ObjectOf({
-  src: is.String,
-  targets: as.Optional(is.ArrayOf(isTarget)),
-}) satisfies Predicate<Link>;
+const ajv = new Ajv();
 
-const isConfig = is.ObjectOf({
-  link: is.RecordOf(is.ArrayOf(isLink), is.String),
-}) satisfies Predicate<Config>;
+function assertConfig(x: unknown): asserts x is Config {
+  const validate = ajv.compile(SchemaConfig);
+  const valid = validate(x);
+  if (!valid) {
+    throw new Error(validate.errors.map((error) => error.message).join("; "));
+  }
+}
 
-const getConfig = async (configPath: string) => {
+export const getConfig = async (configPath: string) => {
   const config = yaml.parse(await Deno.readTextFile(configPath));
-  assert<Config>(config, isConfig);
+  assertConfig(config);
 
   return config;
 };
@@ -67,7 +61,7 @@ const expand = (filepath: string) => {
   return filepath;
 };
 
-const clean = async (dest: string) => {
+export const clean = async (dest: string) => {
   const expandDest = expand(dest);
 
   if (!(await fs.exists(expandDest))) {
@@ -81,7 +75,7 @@ const clean = async (dest: string) => {
   await Deno.remove(expandDest);
 };
 
-const link = async (dest: string, src: string) => {
+export const link = async (dest: string, src: string) => {
   const expandSrc = expand(src);
   const expandDest = expand(dest);
 
@@ -93,49 +87,4 @@ const link = async (dest: string, src: string) => {
   await Deno.symlink(expandSrc, expandDest, {
     type: (await Deno.stat(expandSrc)).isDirectory ? "dir" : "file",
   });
-};
-
-export const cli = async (args: string[]) => {
-  const { options } = await new Command()
-    .option("--config <config:string>", "config path.", { required: true })
-    .option("--clean", "remove dotfile symlinks.", { default: false })
-    .parse(args);
-
-  const config = await getConfig(options.config);
-
-  for (const [dest, linkItems] of Object.entries(config.link)) {
-    for (const { src, targets } of linkItems) {
-      if (
-        typeof targets !== "undefined" &&
-        !targets.map(String).includes(String(Deno.build.os))
-      ) {
-        continue;
-      }
-
-      try {
-        console.info();
-        console.info(
-          `${colors.blue(dest)} ${colors.gray("->")} ${colors.yellow(src)}`,
-        );
-
-        console.info(
-          ` ${colors.gray("Remove:")} ${colors.cyan(dest)}${colors.gray(".")}`,
-        );
-        await clean(dest);
-
-        if (!options.clean) {
-          console.info(
-            ` ${colors.gray("Create:")} ${colors.cyan(dest)} ${
-              colors.gray("->")
-            } ${colors.cyan(src)}${colors.gray(".")}`,
-          );
-          await link(dest, src);
-        }
-
-        console.info(` ${colors.green("Successed.")}`);
-      } catch (error) {
-        console.error(` ${colors.red(error.toString())}`);
-      }
-    }
-  }
 };

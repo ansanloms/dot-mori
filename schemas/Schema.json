@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "Config": {
+      "type": "object",
+      "description": "Config.",
+      "properties": {
+        "link": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Link"
+            }
+          }
+        }
+      },
+      "required": ["link"],
+      "additionalProperties": false
+    },
+    "Link": {
+      "type": "object",
+      "description": "Link.",
+      "properties": {
+        "src": {
+          "type": "string",
+          "description": "src file path."
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EnumOs"
+          },
+          "description": "target os."
+        }
+      },
+      "required": ["src"],
+      "additionalProperties": false
+    },
+    "EnumOs": {
+      "type": "string",
+      "description": "Supported target operating systems.",
+      "enum": ["darwin", "linux", "windows"]
+    }
+  }
+}
