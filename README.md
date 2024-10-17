@@ -11,7 +11,7 @@ Prepare `deno.json` and `config.yaml` as follows.
 ```json
 {
   "imports": {
-    "dot-mori/": "https://raw.githubusercontent.com/ansanloms/dot-mori/v0.1.1/"
+    "dot-mori/": "https://raw.githubusercontent.com/ansanloms/dot-mori/v0.1.2/"
   },
   "tasks": {
     "dot-mori": "echo \"import 'dot-mori/cli.ts'\" | deno run -A -",
