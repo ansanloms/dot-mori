@@ -27,7 +27,7 @@ function assertConfig(x: unknown): asserts x is Config {
   }
 }
 
-export const getConfig = async (configPath: string) => {
+export const getConfig = async (configPath: string): Promise<Config> => {
   const config = yaml.parse(await Deno.readTextFile(configPath));
   assertConfig(config);
 
