@@ -3,7 +3,7 @@ import { colors } from "./deps/@cliffy/ansi/colors.ts";
 import * as dotMori from "./mod.ts";
 
 const { options } = await new Command()
-  .version("0.1.2")
+  .version("0.1.3")
   .description("A tool for managing and installing dotfiles.")
   .option("--config <config:string>", "config path.", { required: true })
   .option("--clean", "remove dotfile symlinks.", { default: false })
