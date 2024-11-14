@@ -4,11 +4,11 @@ A tool for managing and installing dotfiles.
 
 ## Installation
 
+### dotfiles repository
+
 Prepare `deno.json` and `config.yaml` as follows.
 
-### `deno.json`
-
-```json
+```json:deno.json
 {
   "imports": {
     "dot-mori/": "https://raw.githubusercontent.com/ansanloms/dot-mori/v0.1.2/"
@@ -21,9 +21,7 @@ Prepare `deno.json` and `config.yaml` as follows.
 }
 ```
 
-### `config.yaml`
-
-```yaml
+```yaml:config.yaml
 link:
   ~/.bashrc:
     - src: ./path/to/.bashrc
@@ -38,20 +36,26 @@ link:
         - linux
 ```
 
-## Usage
-
-### Installation
-
 Run the following command to link the specified dotfiles.
 
 ```bash
 deno task install
 ```
 
-### Uninstallation
-
 To unlink, run the following command.
 
 ```bash
 deno task uninstall
+```
+
+### command
+
+```bash
+deno install -grfAn dot-mori https://raw.githubusercontent.com/ansanloms/dot-mori/v0.1.2/cli.ts
+
+## install
+dot-mori --config ./config.yaml
+
+## install
+dot-mori --config ./config.yaml --clean
 ```
