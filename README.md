@@ -56,6 +56,6 @@ deno install -grfAn dot-mori https://raw.githubusercontent.com/ansanloms/dot-mor
 ## install
 dot-mori --config ./config.yaml
 
-## install
+## uninstall
 dot-mori --config ./config.yaml --clean
 ```
