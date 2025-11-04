@@ -44,7 +44,7 @@ for (const [dest, linkItems] of Object.entries(config.link)) {
 
       console.info(` ${colors.green("Successed.")}`);
     } catch (error) {
-      console.error(` ${colors.red(error.toString())}`);
+      console.error(` ${colors.red(String(error))}`);
       isError = true;
     }
   }

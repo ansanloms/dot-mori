@@ -6,11 +6,48 @@ import * as yaml from "./deps/@std/yaml/mod.ts";
 import { FromSchema } from "./deps/json-schema-to-ts/mod.ts";
 import Ajv from "./deps/ajv/mod.ts";
 
-import Schema from "./schemas/Schema.json" with { type: "json" };
-
 const SchemaConfig = {
-  ...Schema.definitions.Config,
-  definitions: Schema.definitions,
+  type: "object",
+  description: "Config.",
+  required: ["link"],
+  properties: {
+    link: {
+      type: "object",
+      additionalProperties: {
+        type: "array",
+        items: {
+          "$ref": "#/definitions/Link",
+        },
+      },
+    },
+  },
+  additionalProperties: false,
+  definitions: {
+    Link: {
+      type: "object",
+      description: "Link.",
+      required: ["src"],
+      properties: {
+        src: {
+          type: "string",
+          description: "src file path.",
+        },
+        targets: {
+          type: "array",
+          items: {
+            "$ref": "#/definitions/EnumOs",
+          },
+          description: "target os.",
+        },
+      },
+      additionalProperties: false,
+    },
+    EnumOs: {
+      type: "string",
+      description: "Supported target operating systems.",
+      enum: ["darwin", "linux", "windows"],
+    },
+  },
 } as const;
 
 type Config = FromSchema<typeof SchemaConfig>;
