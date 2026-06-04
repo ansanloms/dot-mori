@@ -1,11 +1,23 @@
 {
   "$schema": "https://raw.githubusercontent.com/denoland/deno/refs/heads/main/cli/schemas/config-file.v1.json",
+  "version": "0.1.5",
   "lock": false,
-  "version": "0.1.4",
   "fmt": {
     "proseWrap": "preserve"
   },
+  "lint": {
+    "rules": { "tags": ["recommended"] },
+    "plugins": ["jsr:@aireone/deno-lint-curly"]
+  },
+  "imports": {},
   "tasks": {
-    "dot-mori": "deno run --allow-env --allow-read --allow-write ./cli.ts"
+    "dot-mori": {
+      "description": "Manage and install dotfiles.",
+      "command": "deno run --allow-env=HOME,USERPROFILE --allow-read --allow-write ./cli.ts"
+    },
+    "test": "deno test -A --parallel --coverage",
+    "check": "deno check",
+    "lint": "deno lint && deno fmt --check",
+    "fix": "deno lint --fix && deno fmt"
   }
 }

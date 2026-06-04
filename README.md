@@ -11,10 +11,13 @@ Prepare `deno.json` and `config.yaml` as follows.
 ```json:deno.json
 {
   "imports": {
-    "dot-mori/": "https://cdn.jsdelivr.net/gh/ansanloms/dot-mori@v0.1.4/"
+    "dot-mori/": "https://cdn.jsdelivr.net/gh/ansanloms/dot-mori@0.1.5/"
   },
   "tasks": {
-    "dot-mori": "deno run -A dot-mori/cli.ts",
+    "dot-mori": {
+      "description": "Manage and install dotfiles.",
+      "command": "deno run --allow-env=HOME,USERPROFILE --allow-read --allow-write dot-mori/cli.ts"
+    },
     "install": "deno task dot-mori --config ./config.yaml",
     "uninstall": "deno task dot-mori --config ./config.yaml --clean"
   }
@@ -51,7 +54,7 @@ deno task uninstall
 ### command
 
 ```bash
-deno install -grfAn dot-mori https://cdn.jsdelivr.net/gh/ansanloms/dot-mori@v0.1.4/cli.ts
+deno install -grfn dot-mori --allow-env=HOME,USERPROFILE --allow-read --allow-write https://cdn.jsdelivr.net/gh/ansanloms/dot-mori@0.1.5/cli.ts
 
 ## install
 dot-mori --config ./config.yaml
