@@ -11,7 +11,7 @@
   },
   "imports": {},
   "tasks": {
-    "dot-mori": "deno run --allow-env --allow-read --allow-write ./cli.ts",
+    "dot-mori": "deno run --allow-env=HOME,USERPROFILE --allow-read --allow-write ./cli.ts",
     "test": "deno test -A --parallel --coverage",
     "check": "deno check",
     "lint": "deno lint && deno fmt --check",
