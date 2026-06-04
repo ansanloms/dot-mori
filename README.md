@@ -14,7 +14,10 @@ Prepare `deno.json` and `config.yaml` as follows.
     "dot-mori/": "https://cdn.jsdelivr.net/gh/ansanloms/dot-mori@v0.1.5/"
   },
   "tasks": {
-    "dot-mori": "deno run --allow-env=HOME,USERPROFILE --allow-read --allow-write dot-mori/cli.ts",
+    "dot-mori": {
+      "description": "Manage and install dotfiles.",
+      "command": "deno run --allow-env=HOME,USERPROFILE --allow-read --allow-write dot-mori/cli.ts"
+    },
     "install": "deno task dot-mori --config ./config.yaml",
     "uninstall": "deno task dot-mori --config ./config.yaml --clean"
   }
