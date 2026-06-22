@@ -4,7 +4,7 @@ import * as path from "./deps/@std/path/mod.ts";
 import * as yaml from "./deps/@std/yaml/mod.ts";
 
 import { FromSchema } from "./deps/json-schema-to-ts/mod.ts";
-import Ajv from "./deps/ajv/mod.ts";
+import { type Schema, Validator } from "./deps/@cfworker/json-schema/mod.ts";
 
 const SchemaConfig = {
   type: "object",
@@ -52,15 +52,15 @@ const SchemaConfig = {
 
 export type Config = FromSchema<typeof SchemaConfig>;
 
-// @ts-ignore ajv@8.20.0 の型定義では default export が constructable として解決されない為、ここのみ型チェックを抑制する。
-const ajv = new Ajv();
+// SchemaConfig は `as const` で readonly 型に推論される為、可変配列を期待する Schema 型へキャストする。
+// draft は SchemaConfig の記法 (definitions) に合わせ "7" を指定し、shortCircuit を false にして
+// 最初のエラーで止めず全件を収集する。
+const validator = new Validator(SchemaConfig as unknown as Schema, "7", false);
 
 export function assertConfig(x: unknown): asserts x is Config {
-  const validate = ajv.compile(SchemaConfig);
-  const valid = validate(x);
+  const { valid, errors } = validator.validate(x);
   if (!valid) {
-    // @ts-ignore 上記 Ajv の型未解決により validate.errors が any 推論となり、コールバック引数が implicit any になる為。
-    throw new Error(validate.errors.map((error) => error.message).join("; "));
+    throw new Error(errors.map((error) => error.error).join("; "));
   }
 }
 
