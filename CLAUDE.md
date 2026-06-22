@@ -43,7 +43,3 @@ dotfiles を管理・インストールするための CLI ツール。設定フ
 
 - `--allow-env=HOME,USERPROFILE` — home ディレクトリ解決 (`deps/dir`) が読む env 変数のみに限定する。
 - `--allow-read` / `--allow-write` — 対象パスは設定次第で任意の場所を指す為、静的に絞れない。限定すると正当な設定が動作しなくなる為、対象を限定せず据え置く。
-
-### ajv の型エラー抑制
-
-`ajv@8.20.0` は default export が constructable として型解決されない。`mod.ts` の該当箇所を理由コメント付きの `// @ts-ignore` で抑制している。

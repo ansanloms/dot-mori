@@ -1,1 +1,1 @@
-export * from "jsr:@gunshi/gunshi@0.32.0";
+export * from "jsr:@gunshi/gunshi@0.35.1";
