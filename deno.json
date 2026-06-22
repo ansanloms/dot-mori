@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/denoland/deno/refs/heads/main/cli/schemas/config-file.v1.json",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "lock": false,
   "fmt": {
     "proseWrap": "preserve"
@@ -9,6 +9,7 @@
     "rules": { "tags": ["recommended"] },
     "plugins": ["jsr:@aireone/deno-lint-curly"]
   },
+  "exclude": [".claude/worktrees"],
   "imports": {},
   "tasks": {
     "dot-mori": {
