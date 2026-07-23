@@ -22,9 +22,32 @@ const command = define({
     const config = await dotMori.getConfig(ctx.values.config);
 
     type Result =
-      | { dest: string; src: string; status: "success" }
-      | { dest: string; src: string; status: "skipped" }
-      | { dest: string; src: string; status: "failed"; error: string };
+      | {
+        kind: "link";
+        dest: string;
+        src: string;
+        status: "success" | "skipped";
+      }
+      | {
+        kind: "link";
+        dest: string;
+        src: string;
+        status: "failed";
+        error: string;
+      }
+      | {
+        kind: "permission";
+        path: string;
+        mode: string;
+        status: "success" | "skipped";
+      }
+      | {
+        kind: "permission";
+        path: string;
+        mode: string;
+        status: "failed";
+        error: string;
+      };
 
     const results: Result[] = [];
 
@@ -42,7 +65,7 @@ const command = define({
           console.info(
             ` ${colors.gray("Skipped:")} not target os (${Deno.build.os}).`,
           );
-          results.push({ dest, src, status: "skipped" });
+          results.push({ kind: "link", dest, src, status: "skipped" });
           continue;
         }
 
@@ -64,10 +87,99 @@ const command = define({
           }
 
           console.info(` ${colors.green("Successed.")}`);
-          results.push({ dest, src, status: "success" });
+          results.push({ kind: "link", dest, src, status: "success" });
         } catch (error) {
           console.error(` ${colors.red(String(error))}`);
-          results.push({ dest, src, status: "failed", error: String(error) });
+          results.push({
+            kind: "link",
+            dest,
+            src,
+            status: "failed",
+            error: String(error),
+          });
+        }
+      }
+    }
+
+    const permissionItems = config.permissions ?? [];
+
+    if (!ctx.values.clean && permissionItems.length > 0) {
+      if (!dotMori.isChmodSupported()) {
+        console.info();
+        console.info(
+          colors.gray(
+            `Permissions: chmod is not supported on ${Deno.build.os}. Skipped.`,
+          ),
+        );
+        for (const { path: targetPath, mode } of permissionItems) {
+          results.push({
+            kind: "permission",
+            path: targetPath,
+            mode,
+            status: "skipped",
+          });
+        }
+      } else {
+        for (const { path: targetPath, mode, targets } of permissionItems) {
+          console.info();
+          console.info(
+            `${colors.blue(targetPath)} ${colors.gray("mode")} ${
+              colors.yellow(mode)
+            }`,
+          );
+
+          if (
+            typeof targets !== "undefined" &&
+            !targets.map(String).includes(String(Deno.build.os))
+          ) {
+            console.info(
+              ` ${colors.gray("Skipped:")} not target os (${Deno.build.os}).`,
+            );
+            results.push({
+              kind: "permission",
+              path: targetPath,
+              mode,
+              status: "skipped",
+            });
+            continue;
+          }
+
+          try {
+            const matched = await dotMori.applyPermission(targetPath, mode);
+
+            if (matched.length === 0) {
+              console.info(` ${colors.gray("Skipped:")} no path matched.`);
+              results.push({
+                kind: "permission",
+                path: targetPath,
+                mode,
+                status: "skipped",
+              });
+              continue;
+            }
+
+            console.info(
+              ` ${colors.gray("Chmod:")} ${
+                colors.cyan(String(matched.length))
+              } ${colors.gray("path(s).")}`,
+            );
+            console.info(` ${colors.green("Successed.")}`);
+            results.push({
+              kind: "permission",
+              path: targetPath,
+              mode,
+              status: "success",
+            });
+          } catch (error) {
+            console.error(` ${colors.red(String(error))}`);
+            results.push({
+              kind: "permission",
+              path: targetPath,
+              mode,
+              status: "failed",
+              error: String(error),
+            });
+          }
         }
       }
     }
@@ -89,9 +201,15 @@ const command = define({
     if (failed.length > 0) {
       console.error();
       console.error(colors.red("Failed:"));
-      for (const { dest, src, error } of failed) {
-        console.error(`  ${dest} ${colors.gray("->")} ${src}`);
-        console.error(`    ${colors.red(error)}`);
+      for (const result of failed) {
+        if (result.kind === "link") {
+          console.error(`  ${result.dest} ${colors.gray("->")} ${result.src}`);
+        } else {
+          console.error(
+            `  ${result.path} ${colors.gray("mode")} ${result.mode}`,
+          );
+        }
+        console.error(`    ${colors.red(result.error)}`);
       }
     }
 
