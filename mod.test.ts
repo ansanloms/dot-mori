@@ -62,13 +62,11 @@ Deno.test("expand: ~ 指定で home が解決できない場合は例外", () =>
 // --- parseConfig ---
 
 Deno.test("parseConfig: 正常な設定をパースする", () => {
-  const config = parseConfig(
-    [
-      "link:",
-      "  ~/.bashrc:",
-      "    - src: ./path/to/.bashrc",
-    ].join("\n"),
-  );
+  const config = parseConfig(`
+link:
+  ~/.bashrc:
+    - src: ./path/to/.bashrc
+`);
 
   assertEquals(Object.keys(config.link), ["~/.bashrc"]);
   assertEquals(config.link["~/.bashrc"][0].src, "./path/to/.bashrc");
@@ -80,25 +78,26 @@ Deno.test("parseConfig: link が無い設定は例外", () => {
 
 Deno.test("parseConfig: 未知のプロパティを含む設定は例外", () => {
   assertThrows(() =>
-    parseConfig(
-      ["link:", "  ~/.x:", "    - src: ./x", "extra: true"].join("\n"),
-    )
+    parseConfig(`
+link:
+  ~/.x:
+    - src: ./x
+extra: true
+`)
   );
 });
 
 Deno.test("parseConfig: permissions を含む設定をパースできる", () => {
-  const config = parseConfig(
-    [
-      "link:",
-      "  ~/.bashrc:",
-      "    - src: ./path/to/.bashrc",
-      "permissions:",
-      "  - path: ./.ssh",
-      '    mode: "700"',
-      "  - path: ./.ssh/keys/*",
-      '    mode: "600"',
-    ].join("\n"),
-  );
+  const config = parseConfig(`
+link:
+  ~/.bashrc:
+    - src: ./path/to/.bashrc
+permissions:
+  - path: ./.ssh
+    mode: "700"
+  - path: ./.ssh/keys/*
+    mode: "600"
+`);
 
   assertEquals(config.permissions?.length, 2);
   assertEquals(config.permissions?.[0].path, "./.ssh");
@@ -108,134 +107,120 @@ Deno.test("parseConfig: permissions を含む設定をパースできる", () =>
 });
 
 Deno.test("parseConfig: permissions が無い設定は undefined (後方互換)", () => {
-  const config = parseConfig(
-    ["link:", "  ~/.bashrc:", "    - src: ./path/to/.bashrc"].join("\n"),
-  );
+  const config = parseConfig(`
+link:
+  ~/.bashrc:
+    - src: ./path/to/.bashrc
+`);
 
   assertEquals(config.permissions, undefined);
 });
 
 Deno.test("parseConfig: permissions の mode が 8 進数以外は例外", () => {
   assertThrows(() =>
-    parseConfig(
-      [
-        "link:",
-        "  ~/.bashrc:",
-        "    - src: ./path/to/.bashrc",
-        "permissions:",
-        "  - path: ./.ssh",
-        '    mode: "abc"',
-      ].join("\n"),
-    )
+    parseConfig(`
+link:
+  ~/.bashrc:
+    - src: ./path/to/.bashrc
+permissions:
+  - path: ./.ssh
+    mode: "abc"
+`)
   );
 });
 
 Deno.test("parseConfig: permissions の mode に不正な桁があると例外", () => {
   assertThrows(() =>
-    parseConfig(
-      [
-        "link:",
-        "  ~/.bashrc:",
-        "    - src: ./path/to/.bashrc",
-        "permissions:",
-        "  - path: ./.ssh",
-        '    mode: "799"',
-      ].join("\n"),
-    )
+    parseConfig(`
+link:
+  ~/.bashrc:
+    - src: ./path/to/.bashrc
+permissions:
+  - path: ./.ssh
+    mode: "799"
+`)
   );
 });
 
 Deno.test("parseConfig: permissions の mode の桁数が不正だと例外", () => {
   assertThrows(() =>
-    parseConfig(
-      [
-        "link:",
-        "  ~/.bashrc:",
-        "    - src: ./path/to/.bashrc",
-        "permissions:",
-        "  - path: ./.ssh",
-        '    mode: "70"',
-      ].join("\n"),
-    )
+    parseConfig(`
+link:
+  ~/.bashrc:
+    - src: ./path/to/.bashrc
+permissions:
+  - path: ./.ssh
+    mode: "70"
+`)
   );
 });
 
 Deno.test("parseConfig: permissions のルールに未知プロパティを含むと例外", () => {
   assertThrows(() =>
-    parseConfig(
-      [
-        "link:",
-        "  ~/.bashrc:",
-        "    - src: ./path/to/.bashrc",
-        "permissions:",
-        "  - path: ./.ssh",
-        '    mode: "700"',
-        "    exclude:",
-        "      - ./x/y",
-      ].join("\n"),
-    )
+    parseConfig(`
+link:
+  ~/.bashrc:
+    - src: ./path/to/.bashrc
+permissions:
+  - path: ./.ssh
+    mode: "700"
+    exclude:
+      - ./x/y
+`)
   );
 });
 
 Deno.test("parseConfig: permissions のルールに path が無いと例外", () => {
   assertThrows(() =>
-    parseConfig(
-      [
-        "link:",
-        "  ~/.bashrc:",
-        "    - src: ./path/to/.bashrc",
-        "permissions:",
-        '  - mode: "700"',
-      ].join("\n"),
-    )
+    parseConfig(`
+link:
+  ~/.bashrc:
+    - src: ./path/to/.bashrc
+permissions:
+  - mode: "700"
+`)
   );
 });
 
 Deno.test("parseConfig: permissions のルールに mode が無いと例外", () => {
   assertThrows(() =>
-    parseConfig(
-      [
-        "link:",
-        "  ~/.bashrc:",
-        "    - src: ./path/to/.bashrc",
-        "permissions:",
-        "  - path: ./.ssh",
-      ].join("\n"),
-    )
+    parseConfig(`
+link:
+  ~/.bashrc:
+    - src: ./path/to/.bashrc
+permissions:
+  - path: ./.ssh
+`)
   );
 });
 
 Deno.test("parseConfig: permissions の targets 付きルールをパースできる", () => {
-  const config = parseConfig(
-    [
-      "link:",
-      "  ~/.bashrc:",
-      "    - src: ./path/to/.bashrc",
-      "permissions:",
-      "  - path: ./.ssh/keys/*.pub",
-      '    mode: "644"',
-      "    targets:",
-      "      - linux",
-    ].join("\n"),
-  );
+  const config = parseConfig(`
+link:
+  ~/.bashrc:
+    - src: ./path/to/.bashrc
+permissions:
+  - path: ./.ssh/keys/*.pub
+    mode: "644"
+    targets:
+      - linux
+`);
 
   assertEquals(config.permissions?.[0].targets, ["linux"]);
 });
 
 Deno.test("parseConfig: permissions の targets に不正な OS 値があると例外", () => {
   assertThrows(() =>
-    parseConfig(
-      [
-        "link:",
-        "  ~/.bashrc:",
-        "    - src: ./path/to/.bashrc",
-        "permissions:",
-        "  - path: ./.ssh/keys/*.pub",
-        '    mode: "644"',
-        "    targets:",
-        "      - solaris",
-      ].join("\n"),
-    )
+    parseConfig(`
+link:
+  ~/.bashrc:
+    - src: ./path/to/.bashrc
+permissions:
+  - path: ./.ssh/keys/*.pub
+    mode: "644"
+    targets:
+      - solaris
+`)
   );
 });
 
