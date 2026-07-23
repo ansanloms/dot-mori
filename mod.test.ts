@@ -5,7 +5,14 @@ import {
 } from "./deps/@std/assert/mod.ts";
 import * as path from "./deps/@std/path/mod.ts";
 
-import { clean, expand, link, parseConfig } from "./mod.ts";
+import {
+  applyPermission,
+  clean,
+  expand,
+  isChmodSupported,
+  link,
+  parseConfig,
+} from "./mod.ts";
 
 /** シンボリックリンク自体の存在を確認する (リンク先を辿らない)。 */
 const lexists = async (p: string): Promise<boolean> => {
@@ -79,6 +86,159 @@ Deno.test("parseConfig: 未知のプロパティを含む設定は例外", () =>
   );
 });
 
+Deno.test("parseConfig: permissions を含む設定をパースできる", () => {
+  const config = parseConfig(
+    [
+      "link:",
+      "  ~/.bashrc:",
+      "    - src: ./path/to/.bashrc",
+      "permissions:",
+      "  - path: ./.ssh",
+      '    mode: "700"',
+      "  - path: ./.ssh/keys/*",
+      '    mode: "600"',
+    ].join("\n"),
+  );
+
+  assertEquals(config.permissions?.length, 2);
+  assertEquals(config.permissions?.[0].path, "./.ssh");
+  assertEquals(config.permissions?.[0].mode, "700");
+  assertEquals(config.permissions?.[1].path, "./.ssh/keys/*");
+  assertEquals(config.permissions?.[1].mode, "600");
+});
+
+Deno.test("parseConfig: permissions が無い設定は undefined (後方互換)", () => {
+  const config = parseConfig(
+    ["link:", "  ~/.bashrc:", "    - src: ./path/to/.bashrc"].join("\n"),
+  );
+
+  assertEquals(config.permissions, undefined);
+});
+
+Deno.test("parseConfig: permissions の mode が 8 進数以外は例外", () => {
+  assertThrows(() =>
+    parseConfig(
+      [
+        "link:",
+        "  ~/.bashrc:",
+        "    - src: ./path/to/.bashrc",
+        "permissions:",
+        "  - path: ./.ssh",
+        '    mode: "abc"',
+      ].join("\n"),
+    )
+  );
+});
+
+Deno.test("parseConfig: permissions の mode に不正な桁があると例外", () => {
+  assertThrows(() =>
+    parseConfig(
+      [
+        "link:",
+        "  ~/.bashrc:",
+        "    - src: ./path/to/.bashrc",
+        "permissions:",
+        "  - path: ./.ssh",
+        '    mode: "799"',
+      ].join("\n"),
+    )
+  );
+});
+
+Deno.test("parseConfig: permissions の mode の桁数が不正だと例外", () => {
+  assertThrows(() =>
+    parseConfig(
+      [
+        "link:",
+        "  ~/.bashrc:",
+        "    - src: ./path/to/.bashrc",
+        "permissions:",
+        "  - path: ./.ssh",
+        '    mode: "70"',
+      ].join("\n"),
+    )
+  );
+});
+
+Deno.test("parseConfig: permissions のルールに未知プロパティを含むと例外", () => {
+  assertThrows(() =>
+    parseConfig(
+      [
+        "link:",
+        "  ~/.bashrc:",
+        "    - src: ./path/to/.bashrc",
+        "permissions:",
+        "  - path: ./.ssh",
+        '    mode: "700"',
+        "    exclude:",
+        "      - ./x/y",
+      ].join("\n"),
+    )
+  );
+});
+
+Deno.test("parseConfig: permissions のルールに path が無いと例外", () => {
+  assertThrows(() =>
+    parseConfig(
+      [
+        "link:",
+        "  ~/.bashrc:",
+        "    - src: ./path/to/.bashrc",
+        "permissions:",
+        '  - mode: "700"',
+      ].join("\n"),
+    )
+  );
+});
+
+Deno.test("parseConfig: permissions のルールに mode が無いと例外", () => {
+  assertThrows(() =>
+    parseConfig(
+      [
+        "link:",
+        "  ~/.bashrc:",
+        "    - src: ./path/to/.bashrc",
+        "permissions:",
+        "  - path: ./.ssh",
+      ].join("\n"),
+    )
+  );
+});
+
+Deno.test("parseConfig: permissions の targets 付きルールをパースできる", () => {
+  const config = parseConfig(
+    [
+      "link:",
+      "  ~/.bashrc:",
+      "    - src: ./path/to/.bashrc",
+      "permissions:",
+      "  - path: ./.ssh/keys/*.pub",
+      '    mode: "644"',
+      "    targets:",
+      "      - linux",
+    ].join("\n"),
+  );
+
+  assertEquals(config.permissions?.[0].targets, ["linux"]);
+});
+
+Deno.test("parseConfig: permissions の targets に不正な OS 値があると例外", () => {
+  assertThrows(() =>
+    parseConfig(
+      [
+        "link:",
+        "  ~/.bashrc:",
+        "    - src: ./path/to/.bashrc",
+        "permissions:",
+        "  - path: ./.ssh/keys/*.pub",
+        '    mode: "644"',
+        "    targets:",
+        "      - solaris",
+      ].join("\n"),
+    )
+  );
+});
+
 // --- clean ---
 
 Deno.test("clean: シンボリックリンクを削除し、リンク先は残す", async () => {
@@ -146,4 +306,82 @@ Deno.test("link: src が存在しない場合は例外", async () => {
   } finally {
     await Deno.remove(tmp, { recursive: true });
   }
+});
+
+// --- applyPermission ---
+// 本テストは chmod をサポートする OS (Windows 以外) 上でのみ有効。
+
+Deno.test("applyPermission: glob にマッチする全ファイルへ適用し、マッチパス一覧を返す", async () => {
+  const tmp = await Deno.makeTempDir();
+  try {
+    const keysDir = path.join(tmp, "keys");
+    await Deno.mkdir(keysDir);
+    const fileA = path.join(keysDir, "a");
+    const fileB = path.join(keysDir, "b");
+    await Deno.writeTextFile(fileA, "x");
+    await Deno.writeTextFile(fileB, "x");
+
+    const matched = await applyPermission(path.join(keysDir, "*"), "600");
+
+    assertEquals(matched.sort(), [fileA, fileB].sort());
+    assertEquals(((await Deno.stat(fileA)).mode ?? 0) & 0o777, 0o600);
+    assertEquals(((await Deno.stat(fileB)).mode ?? 0) & 0o777, 0o600);
+  } finally {
+    await Deno.remove(tmp, { recursive: true });
+  }
+});
+
+Deno.test("applyPermission: 後勝ちで後のルールが上書きする", async () => {
+  const tmp = await Deno.makeTempDir();
+  try {
+    const fileA = path.join(tmp, "a");
+    const fileB = path.join(tmp, "b.pub");
+    await Deno.writeTextFile(fileA, "x");
+    await Deno.writeTextFile(fileB, "x");
+
+    await applyPermission(path.join(tmp, "*"), "600");
+    await applyPermission(path.join(tmp, "*.pub"), "644");
+
+    assertEquals(((await Deno.stat(fileA)).mode ?? 0) & 0o777, 0o600);
+    assertEquals(((await Deno.stat(fileB)).mode ?? 0) & 0o777, 0o644);
+  } finally {
+    await Deno.remove(tmp, { recursive: true });
+  }
+});
+
+Deno.test("applyPermission: glob なしのリテラルパスでディレクトリに適用できる", async () => {
+  const tmp = await Deno.makeTempDir();
+  try {
+    const dir = path.join(tmp, "dir");
+    await Deno.mkdir(dir);
+
+    const matched = await applyPermission(dir, "700");
+
+    assertEquals(matched, [dir]);
+    assertEquals(((await Deno.stat(dir)).mode ?? 0) & 0o777, 0o700);
+  } finally {
+    await Deno.remove(tmp, { recursive: true });
+  }
+});
+
+Deno.test("applyPermission: マッチ 0 件は空配列を返し例外にならない", async () => {
+  const tmp = await Deno.makeTempDir();
+  try {
+    const matched = await applyPermission(path.join(tmp, "nope", "*"), "600");
+
+    assertEquals(matched, []);
+  } finally {
+    await Deno.remove(tmp, { recursive: true });
+  }
+});
+
+// --- isChmodSupported ---
+
+Deno.test("isChmodSupported: windows では false", () => {
+  assertEquals(isChmodSupported("windows"), false);
+});
+
+Deno.test("isChmodSupported: linux / darwin では true", () => {
+  assertEquals(isChmodSupported("linux"), true);
+  assertEquals(isChmodSupported("darwin"), true);
 });

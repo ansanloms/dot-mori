@@ -20,6 +20,13 @@ const SchemaConfig = {
         },
       },
     },
+    permissions: {
+      type: "array",
+      items: {
+        "$ref": "#/definitions/Permission",
+      },
+      description: "file/directory permissions to apply after linking.",
+    },
   },
   additionalProperties: false,
   definitions: {
@@ -46,6 +53,30 @@ const SchemaConfig = {
       type: "string",
       description: "Supported target operating systems.",
       enum: ["darwin", "linux", "windows"],
+    },
+    Permission: {
+      type: "object",
+      description: "Permission.",
+      required: ["path", "mode"],
+      properties: {
+        path: {
+          type: "string",
+          description: "target file/directory path (supports glob).",
+        },
+        mode: {
+          type: "string",
+          description: 'octal permission mode string (e.g. "700").',
+          pattern: "^[0-7]{3,4}$",
+        },
+        targets: {
+          type: "array",
+          items: {
+            "$ref": "#/definitions/EnumOs",
+          },
+          description: "target os.",
+        },
+      },
+      additionalProperties: false,
     },
   },
 } as const;
@@ -87,6 +118,15 @@ export const getConfig = async (configPath: string): Promise<Config> => {
  * env (HOME / USERPROFILE) に依存する為、呼び出し時に評価する。
  */
 export const getHomedir = (): string | undefined => dir("home") ?? undefined;
+
+/**
+ * 現在の OS で chmod (パーミッション変更) がサポートされているか判定する。
+ * `Deno.chmod` は Windows では使用できない為、windows なら false を返す。
+ * `os` を注入できる為、実行環境に依存せずテスト可能。
+ */
+export const isChmodSupported = (
+  os: typeof Deno.build.os = Deno.build.os,
+): boolean => os !== "windows";
 
 /**
  * パスを展開する。先頭の `~` を home ディレクトリへ、相対パスを絶対パスへ変換する。
@@ -138,4 +178,33 @@ export const link = async (dest: string, src: string) => {
   await Deno.symlink(expandSrc, expandDest, {
     type: (await Deno.stat(expandSrc)).isDirectory ? "dir" : "file",
   });
+};
+
+/**
+ * glob パターンにマッチする全ファイル・ディレクトリへ mode (8 進数文字列) の chmod を適用する。
+ * パスは `expand()` で解決する為、`~` 展開と cwd 基準の相対パス解決に対応する。
+ * マッチが 0 件の場合は chmod を行わず空配列を返す (呼び出し側で skipped として扱う想定)。
+ * mode の妥当性検証は config の schema (pattern) に委ね、ここでは再検証しない。
+ */
+export const applyPermission = async (
+  targetPath: string,
+  mode: string,
+): Promise<string[]> => {
+  const expandTarget = expand(targetPath);
+
+  const matches: string[] = [];
+  for await (
+    const entry of fs.expandGlob(expandTarget, {
+      includeDirs: true,
+      followSymlinks: false,
+    })
+  ) {
+    matches.push(entry.path);
+  }
+
+  for (const match of matches) {
+    await Deno.chmod(match, parseInt(mode, 8));
+  }
+
+  return matches;
 };
